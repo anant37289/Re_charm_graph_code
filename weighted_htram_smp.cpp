@@ -217,15 +217,11 @@ public:
     start_time = CkWallTimer();
     if (generate_mode == 2) {
       long side_length = (int)std::sqrt((double)V);
-#ifdef INFO_PRINTS
       ckout << "Side length: " << side_length << endl;
-#endif
       num_global_edges =
           4 * side_length * (side_length - 1); // will ignore command line input
-#ifdef INFO_PRINTS
       ckout << "2-D Graph will be automatically generated with " << V
             << " vertices and " << num_global_edges << " edges" << endl;
-#endif
       int assigned_pe = 0;
       for (int i = 0; i < side_length; i += tile_size) {
         for (int j = 0; j < side_length; j += tile_size) {
