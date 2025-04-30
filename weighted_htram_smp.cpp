@@ -148,9 +148,6 @@ private:
   long previous_distance_changes = 0;
   double tram_percentile = 0.01;
   double heap_percentile = 0.01;
-#ifdef PRINT_HISTO
-  histogramSequence *histoSeq;
-#endif
 
 public:
   double compute_begin;
@@ -196,9 +193,6 @@ public:
       CkExit(0);
     }
     heap_percentile = std::stod(m->argv[7]);
-#ifdef PRINT_HISTO
-    histoSeq = new histogramSequence(histo_bucket_count);
-#endif
     // create TRAM proxy
     nodeGrpProxy = CProxy_HTramRecv::ckNew();
     srcNodeGrpProxy = CProxy_HTramNodeGrp::ckNew();
@@ -247,9 +241,7 @@ public:
     shared.max_path_value(max_sum);
     if (generate_mode == 1 || generate_mode == 2)
       read_time = CkWallTimer() - start_time;
-#ifdef INFO_PRINTS
     ckout << "The sum of the maximum out-edges is " << max_sum << endl;
-#endif
     Update new_edge;
     new_edge.dest_vertex = start_vertex;
     new_edge.distance = 0;
@@ -263,9 +255,7 @@ public:
     CcdCallFnAfter(start_reductions, (void *)this, reduction_delay);
     CcdCallFnAfter(fast_exit, (void *)this, 30000.0); // end after 5 s
     compute_begin = CkWallTimer();
-#ifdef INFO_PRINTS
     ckout << "Beginning at time: " << compute_begin << endl;
-#endif
     arr.start_papi();
     arr[dest_proc].start_algo(new_edge);
   }
@@ -306,35 +296,18 @@ public:
         first_nonzero = i + last_first_nonzero;
       }
     }
-#ifdef PRINT_HISTO
-    histoSeq->insert(last_first_nonzero, histo_reduction_width, histo_values);
-#endif
-#ifdef INFO_PRINTS
     ckout << "Updates: created: " << updates_created
           << ", noted: " << updates_noted
           << ", processed: " << updates_processed
           << ", distance changes: " << distance_changes
           << ", Done vertices: " << done_vertex_count
           << ", BFS noted: " << bfs_noted;
-#endif
-    /*
-    if ((bfs_processed == done_vertex_count) && (bfs_processed > 1000)) // not
-    quite correct.. this should be affter we are sure bfs_processed has
-    converged.. maybe via qd
-    {
-    ckout << "all reachable vertices are done. " << bfs_processed << ":" <<
-    done_vertex_count << " at time: " << CkWallTimer() << endl; compute_time =
-    CkWallTimer() - compute_begin; arr.print_distances(); return;
-    }
-    */
     if ((updates_processed - updates_created == 1) &&
         (updates_created > 1000) &&
         (updates_created == previous_updates_created) &&
         (updates_processed == previous_updates_processed)) {
       ckout << endl << "updates_processed and updates_created match" << endl;
-#ifdef INFO_PRINTS
       ckout << "Threshold: " << previous_threshold << endl;
-#endif
       compute_time = CkWallTimer() - compute_begin;
       arr.print_distances();
       return;
@@ -384,13 +357,11 @@ public:
       previous_threshold = heap_threshold;
       threshold_change_counter++;
     }
-#ifdef INFO_PRINTS
     ckout << ", Heap threshold: " << heap_threshold
           << ", Tram: " << tram_threshold
           << ", BFS threshold: " << bfs_threshold
           << ", first nonzero: " << first_nonzero << ", t= " << CkWallTimer()
           << endl;
-#endif
     // arr.contribute_histogram(first_nonzero-1);
     last_first_nonzero = first_nonzero;
     arr.current_thresholds(heap_threshold, tram_threshold, bfs_threshold,
@@ -568,12 +539,7 @@ public:
       vcount[i] = 0;
     }
     vcount[histo_bucket_count] = 0;
-    // partition_index = new long[dividers];
     num_vertices = pe_to_vertices[thisIndex].size();
-    // dest_table = new int[V / M];
-    // for (int i = 0, j = 0; i < V; j++, i = j * M) {
-    //   dest_table[j] = vertecx_to_pe[i];
-    // }
     local_graph = new Node[num_vertices];
     heap_threshold = initial_threshold;
     tram_threshold = initial_threshold + 2;
@@ -596,14 +562,10 @@ public:
                          std::map<long, long> vertex_to_pe) {
     initialize_data(pe_to_vertices, vertex_to_pe);
     bucket_multiplier = histo_bucket_count / (histo_bucket_count * sqrt(V));
-#ifdef INFO_PRINTS
-    ckout << "Generating local graph on PE " << CkMyPe() << " with "
-          << num_vertices << " vertices" << endl;
-#endif
+    ckout << "Generating local graph on PE " << CkMyPe() << " with " << num_vertices << " vertices" << endl;
     cost *largest_outedges = new cost[num_vertices];
     long side_length = (int)std::sqrt((double)V);
     bucket_multiplier = histo_bucket_count / (histo_bucket_count * sqrt(V));
-    auto vertices = pe_to_vertices[thisIndex];
     for (int i = 0; i < vertices.size(); i++) {
       Node new_node;
       new_node.home_process = thisIndex;
@@ -671,10 +633,7 @@ public:
     for (int i = 0; i < num_vertices; i++) {
       max_edges_sum += largest_outedges[i];
     }
-#ifdef INFO_PRINTS
-    ckout << "PE " << CkMyPe() << " generated " << actual_edges << " edges"
-          << endl;
-#endif
+    ckout << "PE " << CkMyPe() << " generated " << actual_edges << " edges" << endl;
     CkCallback cb(CkReductionTarget(Main, begin), mainProxy);
     contribute(sizeof(cost), &max_edges_sum, CkReduction::sum_long, cb);
   }
@@ -819,39 +778,15 @@ public:
     cost this_cost = new_vertex_and_distance.distance;
     int this_bucket = get_histo_bucket(this_cost);
     if (this_cost < local_graph[local_index].distance) {
-#ifdef VCOUNT
-      vcount[this_bucket]++;
-      if (local_graph[local_index].distance == lmax) {
-        vcount[histo_bucket_count]--;
-      } else
-        vcount[get_histo_bucket(local_graph[local_index].distance)]--;
-#endif
       local_graph[local_index].distance = this_cost;
       distance_changes++;
       updates_noted++;
       int pq_bucket;
       if (local_graph[local_index].adjacent.size() > 0) {
-#ifdef PQ_EDGE_DIST
-        pq_bucket = get_histo_bucket(
-            local_graph[local_index].adjacent[0].distance + this_cost);
-#ifndef PQ_HOLD_ONLY
-        if (pq_bucket > heap_threshold) {
-          pq_hold[pq_bucket].push_back(new_vertex_and_distance);
-        } else
-          pq.push(new_vertex_and_distance);
-#else
-        pq_hold[pq_bucket].push_back(new_vertex_and_distance);
-#endif
-#else
-#ifndef PQ_HOLD_ONLY
         if (this_bucket > heap_threshold) {
           pq_hold[this_bucket].push_back(new_vertex_and_distance);
         } else
           pq.push(new_vertex_and_distance);
-#else
-        pq_hold[this_bucket].push_back(new_vertex_and_distance);
-#endif
-#endif
       } else {
         wasted_updates++;
         histogram[this_bucket]--;
