@@ -504,14 +504,7 @@ public:
   }
 
   int get_dest_proc_local(Update upd) {
-    int dest_proc = get_dest_proc(upd.dest_vertex);
-
-    if (dest_proc == CkMyPe()) {
-      // local_updates.push_back(upd);
-      return -1;
-    }
-
-    return dest_proc;
+    return get_dest_proc(upd.dest_vertex);
   }
 
   SsspChares(CProxy_HTram htram) { tram_proxy = htram; }
@@ -697,9 +690,7 @@ public:
       } else {
         // calculated dest proc
         int dest_proc = get_dest_proc(new_update.dest_vertex);
-        tram->sendItemPrioDeferredDest(
-            new_update,
-            0); // tram->insertValue(new_update, dest_proc);//this gets called
+        tram->sendItemPrioDeferredDest(new_update, 0); // tram->insertValue(new_update, dest_proc);
       }
     }
   }
@@ -821,7 +812,7 @@ public:
         break;
       }
       pq.pop();
-      if (vertex_to_pe[dest_vertex] = thisIndex) {
+      if (vertex_to_pe[dest_vertex] == thisIndex) {
         long local_index{};
         for (int i = 0; i < vertices.size(); i++) {
           if (dest_vertex == vertices[i])
