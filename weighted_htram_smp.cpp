@@ -483,6 +483,7 @@ private:
   std::map<long, long>
       vertex_to_pe; // a map that stores the pe assigned to each vertex
   std::vector<long> vertices; // list of vertices assigned to this PE
+  int num_vertices = 0; // number of vertices assigned to this PE
   long wasted_updates = 0; // number of updates that don't have the final answer
   long rejected_updates = 0; // number of updates that don't decrease a distance
   // value/create more messages
@@ -558,7 +559,7 @@ public:
 
   void initialize_data(std::map<long, std::vector<long>> pe_to_vertices,
                        std::map<long, long> vertex_to_pe) {
-    this->vertcies = pe_to_vertices[thisIndex];
+    this->vertices = pe_to_vertices[thisIndex];
     this->vertex_to_pe = vertex_to_pe;
     histogram = new long[histo_bucket_count];
     vcount = new long[histo_bucket_count + 1]; // histo buckets plus infty
@@ -736,7 +737,7 @@ public:
             neighbor_bucket); // tram_hold[neighbor_bucket].push_back(new_update);
       } else {
         // calculated dest proc
-        int dest_proc = get_dest_proc_fast(new_update.dest_vertex);
+        int dest_proc = get_dest_proc(new_update.dest_vertex);
         tram->sendItemPrioDeferredDest(
             new_update,
             0); // tram->insertValue(new_update, dest_proc);//this gets called
@@ -762,7 +763,7 @@ public:
             neighbor_bucket); // tram_hold[neighbor_bucket].push_back(new_update);
       } else {
         // calculated dest proc
-        int dest_proc = get_dest_proc_fast(new_update.dest_vertex);
+        int dest_proc = get_dest_proc(new_update.dest_vertex);
         tram->sendItemPrioDeferredDest(
             new_update,
             0); // tram->insertValue(new_update, dest_proc);//this gets called
@@ -885,8 +886,7 @@ public:
         break;
       }
       pq.pop();
-      if (dest_vertex >= partition_index[thisIndex] &&
-          dest_vertex < partition_index[thisIndex + 1]) {
+      if (vertex_to_pe[dest_vertex] = thisIndex) {
         long local_index{};
         for (int i = 0; i < vertices.size(); i++) {
           if (dest_vertex == vertices[i])

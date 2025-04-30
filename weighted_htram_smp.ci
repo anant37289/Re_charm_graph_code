@@ -39,8 +39,6 @@ mainmodule weighted_htram_smp
     entry void initiate_pointers();
     entry [whenidle] bool idle_triggered();
     entry void generate_2d_graph(map<long, vector<long>> pe_to_vertices, map<long, long> vertex_to_pe);
-    entry void generate_local_graph(long _num_vertices, long _num_edges, long partition[dividers], int dividers);
-    entry void get_graph(LongEdge edges[E], long E, long partition[dividers], int dividers); //gets graph partition
     entry void start_papi();
     entry void start_algo(Update new_vertex_and_distance);
     entry void process_heap();
