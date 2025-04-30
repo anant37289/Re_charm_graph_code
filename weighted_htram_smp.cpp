@@ -127,8 +127,8 @@ class Main : public CBase_Main {
 private:
   long start_vertex;
   // long *partition_index;
-  std::map <long, long> vertex_to_pe;
-  std::map <long, std::vector<long>> pe_to_vertices;
+  std::map<long, long> vertex_to_pe;
+  std::map<long, std::vector<long>> pe_to_vertices;
   double start_time;
   double read_time;
   double total_time;
@@ -217,29 +217,29 @@ public:
     start_time = CkWallTimer();
     if (generate_mode == 2) {
       long side_length = (int)std::sqrt((double)V);
-      #ifdef INFO_PRINTS
+#ifdef INFO_PRINTS
       ckout << "Side length: " << side_length << endl;
-      #endif
+#endif
       num_global_edges =
-      4 * side_length * (side_length - 1); // will ignore command line input
+          4 * side_length * (side_length - 1); // will ignore command line input
 #ifdef INFO_PRINTS
       ckout << "2-D Graph will be automatically generated with " << V
             << " vertices and " << num_global_edges << " edges" << endl;
 #endif
       int assigned_pe = 0;
-      for(int i=0;i<side_length;i+=tile_size){
-        for(int j=0;j<side_length;j+=tile_size){
-          for(int ii=0;ii<tile_size;ii++){
-            for(int jj=0;jj<tile_size;jj++){
-              long vertex = (i+ii)*side_length + (j+jj);
+      for (int i = 0; i < side_length; i += tile_size) {
+        for (int j = 0; j < side_length; j += tile_size) {
+          for (int ii = 0; ii < tile_size; ii++) {
+            for (int jj = 0; jj < tile_size; jj++) {
+              long vertex = (i + ii) * side_length + (j + jj);
               vertex_to_pe[vertex] = assigned_pe;
               pe_to_vertices[assigned_pe].push_back(vertex);
             }
           }
-          assigned_pe = (assigned_pe + 1)% N;
+          assigned_pe = (assigned_pe + 1) % N;
         }
       }
-      arr.generate_2d_graph(pe_to_vertices, vertex_to_pe );
+      arr.generate_2d_graph(pe_to_vertices, vertex_to_pe);
     }
   }
 
@@ -280,28 +280,7 @@ public:
    * also restart qd
    * If empty, end execution by printing the distances
    */
-  void quiescence_detected() {
-    /*
-    if (first_qd_done == false)
-    {
-    first_qd_done = true;
-    #ifdef INFO_PRINTS
-    ckout << "First Quiescence detected at time: " << CkWallTimer() <<
-    endl; #endif CkCallback cb(CkIndex_Main::quiescence_detected(), mainProxy);
-    CkStartQD(cb);
-    // Ask everyone to call flush
-    arr.get_bucket_limit(initial_threshold, initial_threshold+2, 0); //
-    dummy values.. hopefully no damage. Just get tflush called
-    }
-    else
-    {
-    second_qd_done = true;
-    #ifdef INFO_PRINTS
-    ckout << "Second Quiescence detected at time: " << CkWallTimer() <<
-    " starting reductions. "<< endl; #endif arr.contribute_histogram(0);
-    }
-    */
-  }
+  void quiescence_detected() {}
 
   /**
    * Receive histo values from pes
@@ -428,31 +407,9 @@ public:
   /**
    * returns when all buffers are checked
    */
-  void check_buffer_done(long *msg_stats, int N) {
-    /*
-    int net_messages = msg_stats[1] - msg_stats[0]; // updates_processed -
-    updates_created if (net_messages == 1)
-    // difference of 1 because of initial send
-    {
-    //ckout << "Real quiescence, terminate" << endl;
-    compute_time = CkWallTimer() - compute_begin;
-    //arr.stop_periodic_flush();
-    arr.print_distances();
-    }
-    else
-    {
-    //ckout << "False quiescence, continue execution" << endl;
-    CkCallback cb(CkIndex_Main::quiescence_detected(), mainProxy);
-    CkStartQD(cb);
-    arr.keep_going();
-    }
-    */
-  }
+  void check_buffer_done(long *msg_stats, int N) {}
 
   void done(long *msg_stats, int N) {
-    // ends program, prints that program is ended
-    // ckout << "Completed" << endl;
-    // CkPrintf("Memory usage at end: %f\n", CmiMemoryUsage()/(1024.0*1024.0));
     total_time = CkWallTimer() - start_time;
     ckout << "Actual edges: " << msg_stats[4 + histo_bucket_count] << endl;
     ckout << "Read time: " << read_time << endl;
@@ -472,32 +429,12 @@ public:
     ckout << "Distance changes: " << msg_stats[5 + histo_bucket_count]
           << ", per vertex: " << msg_stats[5 + histo_bucket_count] * 1.0 / V
           << endl;
-#ifdef VCOUNT
-    long vcount_sum = 0;
-    ckout << "Vcount: [ ";
-    for (int i = 0; i < histo_bucket_count + 1; i++) {
-      ckout << msg_stats[i + 2] << ", ";
-      vcount_sum += msg_stats[i + 2];
-    }
-    ckout << endl;
-    ckout << "Vcount sum: " << vcount_sum << endl;
-#endif
-#ifdef PAPI
-    ckout << "Total insts: " << msg_stats[6 + histo_bucket_count] << endl;
-    ckout << "Insts per edge: "
-          << msg_stats[6 + histo_bucket_count] * 1.0 /
-                 msg_stats[4 + histo_bucket_count]
-          << endl;
-#endif
     arr.get_max_cost();
   }
 
   void done_max_cost(cost max_cost) {
     ckout << "Maximum vertex cost, not counting unreachable: " << max_cost
           << endl;
-#ifdef PRINT_HISTO
-    histoSeq->putout();
-#endif
     CkExit(0);
   }
 };
@@ -525,15 +462,6 @@ public:
     event_id = traceRegisterUserEvent("Contrib reduction");
     bracketed_id = traceRegisterUserEvent("Vector inserts");
     othercaller_id = traceRegisterUserEvent("Other caller");
-#ifdef PAPI
-    if (CkNodeFirst(CkMyNode()) == CkMyPe()) {
-      int retval = PAPI_library_init(PAPI_VER_CURRENT);
-      if (retval != PAPI_VER_CURRENT) {
-        fprintf(stderr, "PAPI library init error!\n");
-        CkExit(1);
-      }
-    }
-#endif
     for (int i = 0; i < N; i++) {
       chunks_remaining.push_back(new std::atomic_int[HISTO_BUCKET_COUNT]);
       for (int j = 0; j < histo_bucket_count; j++) {
@@ -550,11 +478,14 @@ public:
  */
 class SsspChares : public CBase_SsspChares {
 private:
-  Node *local_graph;     // structure to hold vertices assigned to this pe  long num_vertices = 0; // number of vertices assigned to this pe
+  Node *local_graph; // structure to hold vertices assigned to this pe  long
+                     // num_vertices = 0; // number of vertices assigned to this
+                     // pe
   long updates_created_locally = 0;   // number of update messages sent
   long updates_processed_locally = 0; // number of update messages received
   // long *partition_index;   // defines boundaries of indices for each pe
-  std::map<long, long> vertex_to_pe; // a map that stores the pe assigned to each vertex
+  std::map<long, long>
+      vertex_to_pe; // a map that stores the pe assigned to each vertex
   std::vector<long> vertices; // list of vertices assigned to this PE
   long wasted_updates = 0; // number of updates that don't have the final answer
   long rejected_updates = 0; // number of updates that don't decrease a distance
@@ -606,12 +537,12 @@ public:
 
   int get_dest_proc_local(Update upd) {
     int dest_proc = get_dest_proc(upd.dest_vertex);
-    
-    if(dest_proc==CkMyPe()) {
-    // local_updates.push_back(upd);
-    return -1;
+
+    if (dest_proc == CkMyPe()) {
+      // local_updates.push_back(upd);
+      return -1;
     }
-    
+
     return dest_proc;
   }
 
@@ -622,17 +553,6 @@ public:
     tram->set_func_ptr_retarr(SsspChares::process_update_caller,
                               get_dest_proc_local_caller, done_caller, this);
     shared_local = shared.ckLocalBranch();
-#ifdef PAPI
-    eventset = PAPI_NULL;
-    int result = PAPI_create_eventset(&eventset);
-    if (result != PAPI_OK) {
-      printf("Error PAPI create eventset: %s\n", PAPI_strerror(result));
-    }
-    result = PAPI_add_event(eventset, PAPI_TOT_INS);
-    if (result != PAPI_OK) {
-      printf("Error PAPI add_event %s\n", PAPI_strerror(result));
-    }
-#endif
   }
 
   bool idle_triggered() {
@@ -640,7 +560,8 @@ public:
     return true;
   }
 
-  void initialize_data(std::map<long, std::vector<long>> pe_to_vertices, std::map<long, long> vertex_to_pe) {
+  void initialize_data(std::map<long, std::vector<long>> pe_to_vertices,
+                       std::map<long, long> vertex_to_pe) {
     this->vertcies = pe_to_vertices[thisIndex];
     this->vertex_to_pe = vertex_to_pe;
     histogram = new long[histo_bucket_count];
@@ -674,9 +595,8 @@ public:
     CkCallWhenIdle(CkIndex_SsspChares::idle_triggered(), this);
   }
 
-  void generate_2d_graph(
-      std::map<long, std::vector<long>> pe_to_vertices,
-      std::map<long, long> vertex_to_pe) {
+  void generate_2d_graph(std::map<long, std::vector<long>> pe_to_vertices,
+                         std::map<long, long> vertex_to_pe) {
     initialize_data(pe_to_vertices, vertex_to_pe);
     bucket_multiplier = histo_bucket_count / (histo_bucket_count * sqrt(V));
 #ifdef INFO_PRINTS
@@ -687,7 +607,7 @@ public:
     long side_length = (int)std::sqrt((double)V);
     bucket_multiplier = histo_bucket_count / (histo_bucket_count * sqrt(V));
     auto vertices = pe_to_vertices[thisIndex];
-    for (int i=0;i<vertices.size();i++) {
+    for (int i = 0; i < vertices.size(); i++) {
       Node new_node;
       new_node.home_process = thisIndex;
       new_node.distance = lmax;
@@ -762,15 +682,7 @@ public:
     contribute(sizeof(cost), &max_edges_sum, CkReduction::sum_long, cb);
   }
 
-  void start_papi() {
-#ifdef PAPI
-    int result = PAPI_start(eventset);
-    if (result != PAPI_OK) {
-      printf("Error PAPI start: %s\n", PAPI_strerror(result));
-    }
-#endif
-    traceBegin();
-  }
+  void start_papi() { traceBegin(); }
 
   /**
    * Method that accepts initial update to source vertex
@@ -822,8 +734,6 @@ public:
       int neighbor_bucket = get_histo_bucket(new_update.distance);
       histogram[neighbor_bucket]++;
       updates_created_locally++;
-// if exceeds limit, put in hold
-#ifndef ALL_TO_TRAM_HOLD
       if ((neighbor_bucket > tram_threshold) && !bfs) {
         tram->sendItemPrioDeferredDest(
             new_update,
@@ -831,32 +741,10 @@ public:
       } else {
         // calculated dest proc
         int dest_proc = get_dest_proc_fast(new_update.dest_vertex);
-#ifndef LOCAL_TO_TRAM
-        if (dest_proc == CkMyPe()) {
-          process_update(new_update);
-        } else {
-          tram->sendItemPrioDeferredDest(
-              new_update, 0); // tram->insertValue(new_update, dest_proc);
-        }
-#else
         tram->sendItemPrioDeferredDest(
             new_update,
             0); // tram->insertValue(new_update, dest_proc);//this gets called
-#endif
       }
-#else
-      tram->sendItemPrioDeferredDest(new_update, neighbor_bucket);
-      // tram_hold[neighbor_bucket].push_back(new_update);
-      if (neighbor_bucket <= tram_threshold)
-        updates_in_tram++;
-#if 0
- if(updates_in_tram == 8192)
- {
- tram->insertBuckets(tram_threshold);
- updates_in_tram = 0;
- }
-#endif
-#endif
     }
   }
 
@@ -872,8 +760,6 @@ public:
       int neighbor_bucket = get_histo_bucket(new_update.distance);
       histogram[neighbor_bucket]++;
       updates_created_locally++;
-// if exceeds limit, put in hold
-#ifndef ALL_TO_TRAM_HOLD
       if (neighbor_bucket > tram_threshold) {
         tram->sendItemPrioDeferredDest(
             new_update,
@@ -881,24 +767,10 @@ public:
       } else {
         // calculated dest proc
         int dest_proc = get_dest_proc_fast(new_update.dest_vertex);
-#ifndef LOCAL_TO_TRAM
-        if (dest_proc == CkMyPe()) {
-          process_update(new_update);
-        } else {
-          tram->sendItemPrioDeferredDest(
-              new_update, 0); // tram->insertValue(new_update, dest_proc);
-        }
-#else
         tram->sendItemPrioDeferredDest(
             new_update,
             0); // tram->insertValue(new_update, dest_proc);//this gets called
-#endif
       }
-#else
-      tram->sendItemPrioDeferredDest(new_update, neighbor_bucket);
-      if (neighbor_bucket <= tram_threshold)
-        updates_in_tram++;
-#endif
     }
   }
 
@@ -915,8 +787,9 @@ public:
       cost new_distance = new_vertex_and_distance.distance;
       int this_histo_bucket = get_histo_bucket(new_distance);
       long local_index{};
-      for(int i = 0; i < vertices.size(); i++) {
-        if(dest_vertex == vertices[i]) break;
+      for (int i = 0; i < vertices.size(); i++) {
+        if (dest_vertex == vertices[i])
+          break;
         local_index++;
       }
       if (new_distance == local_graph_other[local_index].distance) {
@@ -941,8 +814,9 @@ public:
   inline void process_update(Update new_vertex_and_distance) {
     long dest_vertex = new_vertex_and_distance.dest_vertex;
     long local_index{};
-    for(int i = 0; i < vertices.size(); i++) {
-      if(dest_vertex == vertices[i]) break;
+    for (int i = 0; i < vertices.size(); i++) {
+      if (dest_vertex == vertices[i])
+        break;
       local_index++;
     }
     cost this_cost = new_vertex_and_distance.distance;
@@ -1001,96 +875,6 @@ public:
    * returns true (runs when pe is idle)
    */
   void process_heap() {
-#ifdef PQ_HOLD_ONLY
-    for (int i = 0; i <= heap_threshold; i++) // iterate to heap threshold
-    {
-      long items_processed = 0;
-#ifdef NODE_LOAD_BALANCE
-      if (pq_hold[i].size() > chunk_size) {
-        // load all updates into hold_to_process
-        traceBeginUserBracketEvent(shared_local->bracketed_id);
-        for (int j = 0; j < pq_hold[i].size(); j++) {
-          hold_to_process[i].push_back(pq_hold[i][j]);
-        }
-        traceEndUserBracketEvent(shared_local->bracketed_id);
-        // make separate vectors
-        int chunk_count = (pq_hold[i].size() / chunk_size) + 1;
-        if (shared_local->chunks_remaining[thisIndex][i] != 0)
-          continue;
-        else
-          shared_local->chunks_remaining[thisIndex][i] = chunk_count;
-        for (int j = 0; j < pq_hold[i].size(); j += chunk_size) {
-          // fill array
-          int low = j;
-          int high = j + chunk_size;
-          if (high > pq_hold[i].size())
-            high = pq_hold[i].size();
-          traceBeginUserBracketEvent(shared_local->othercaller_id);
-          process_heap_shared[CkMyNode()].processHeapOtherCaller(
-              low, high, thisIndex, i, (intptr_t)&hold_to_process[i],
-              high - low, (intptr_t)local_graph, num_vertices);
-          traceEndUserBracketEvent(shared_local->othercaller_id);
-        }
-        pq_hold[i].clear();
-        // arr[thisIndex].process_heap();
-        // break;
-      } else {
-        items_processed = pq_hold[i].size();
-        for (int j = 0; j < pq_hold[i].size();
-             j++) // iterate pq bucket in reverse
-        {
-          Update new_vertex_and_distance = pq_hold[i][j];
-          long dest_vertex = new_vertex_and_distance.dest_vertex;
-          cost new_distance = new_vertex_and_distance.distance;
-          int this_histo_bucket = get_histo_bucket(new_distance);                
-          if (new_distance == local_graph[local_index].distance) {
-            // for all neighbors
-            generate_updates(local_index, false);
-          } else {
-            rejected_updates++;
-          }
-          wasted_updates++;
-          histogram[this_histo_bucket]--;
-          updates_processed_locally++;
-        }
-        if (items_processed > 0) {
-          pq_hold[i].clear();
-          arr[thisIndex].process_heap();
-          break;
-        }
-      }
-#else
-      items_processed = pq_hold[i].size();
-      for (int j = 0; j < pq_hold[i].size();
-           j++) // iterate pq bucket in reverse
-      {
-        Update new_vertex_and_distance = pq_hold[i][j];
-        long dest_vertex = new_vertex_and_distance.dest_vertex;
-        cost new_distance = new_vertex_and_distance.distance;
-        int this_histo_bucket = get_histo_bucket(new_distance);
-        long local_index{};
-        for(int i = 0; i < vertices.size(); i++) {
-          if(dest_vertex == vertices[i]) break;
-          local_index++;
-        }
-        if (new_distance == local_graph[local_index].distance) {
-          // for all neighbors
-          generate_updates(local_index, false);
-        } else {
-          rejected_updates++;
-        }
-        wasted_updates++;
-        histogram[this_histo_bucket]--;
-        updates_processed_locally++;
-      }
-      if (items_processed > 0) {
-        pq_hold[i].clear();
-        arr[thisIndex].process_heap();
-        break;
-      }
-#endif
-    }
-#else
     int heap_count = 0;
     while (pq.size() > 0) {
       if (++heap_count > 100) {
@@ -1108,8 +892,9 @@ public:
       if (dest_vertex >= partition_index[thisIndex] &&
           dest_vertex < partition_index[thisIndex + 1]) {
         long local_index{};
-        for(int i = 0; i < vertices.size(); i++) {
-          if(dest_vertex == vertices[i]) break;
+        for (int i = 0; i < vertices.size(); i++) {
+          if (dest_vertex == vertices[i])
+            break;
           local_index++;
         }
         // if the incoming distance is actually smaller
@@ -1123,22 +908,12 @@ public:
       histogram[this_histo_bucket]--;
       updates_processed_locally++;
     }
-#endif
   }
 
   /**
    * Checks if anything is in the buffer (false quiescence)
    */
-  void check_buffer() {
-    // ckout << "Checking message stats" << endl;
-    /*
-    int msg_stats[2];
-    msg_stats[0] = updates_created_locally;
-    msg_stats[1] = updates_processed_locally;
-    CkCallback cb(CkReductionTarget(Main, check_buffer_done), mainProxy);
-    contribute(2 * sizeof(int), msg_stats, CkReduction::sum_int, cb);
-    */
-  }
+  void check_buffer() {}
 
   /**
    * Contribute to a reduction to get the overall histogram to pe 0/main chare
@@ -1172,34 +947,7 @@ public:
    * Called when some of the buffers aren't full, meaning we need to keep the
    * algorithm going
    */
-  void keep_going() {
-    /*
-    // everything in the tram hold gets added to tram
-    for(int i=0; i<histo_bucket_count; i++)
-    {
-    for(int j=0; j<tram_hold[i].size(); j++)
-    {
-    int dest_proc =
-    get_dest_proc_fast(tram_hold[i][j].dest_vertex); if(dest_proc==CkMyPe())
-    {
-    pq.push(tram_hold[i][j]);
-    }
-    else tram->insertValue(tram_hold[i][j], dest_proc);
-    }
-    tram_hold[i].clear();
-    }
-    for(int i=0; i<histo_bucket_count; i++)
-    {
-    for(int j=0; j<pq_hold[i].size(); j++)
-    {
-    pq.push(pq_hold[i][j]);
-    }
-    pq_hold[i].clear();
-    }
-    tram->tflush();
-    //arr[thisIndex].process_heap();
-    */
-  }
+  void keep_going() {}
 
   void clear_pq_hold() {
     // we should maintain lower bound
@@ -1238,31 +986,10 @@ public:
     float selectivity = 1.0;
     // if(behind_first_nonzero > 68) selectivity = 1.0;
     tram->changeThreshold(direct_threshold, tram_threshold, selectivity);
-#if 0
- for(int i=0; i<=tram_threshold; i++)
- {
- for(int j=0; j<tram_hold[i].size(); j++)
- {
- int dest_proc = get_dest_proc_fast(tram_hold[i][j].dest_vertex);
- if(dest_proc==CkMyPe())
- {
- //process_update(tram_hold[i][j]); //todo: put it in a vector, then loop over it and call process_update
- local_updates.push_back(tram_hold[i][j]);
- }
- else tram->insertValue(tram_hold[i][j], dest_proc); 
- }
- tram_hold[i].clear();
- }
-#endif
-#ifndef PQ_HOLD_ONLY
     arr[thisIndex].clear_pq_hold();
-// add user event
-#endif
     process_local_updates();
     if (rand() % 5 == 0)
       tram->tflush();
-    // tram->sanityCheck();
-    // tram->flush_everything();
     arr[thisIndex].process_heap();
     contribute_histogram(behind_first_nonzero);
   }
@@ -1271,27 +998,8 @@ public:
    * Print out the final distances calculated by the algorithm
    */
   void print_distances() {
-    /*
-    //enable only for smaller graphs
-    for (int i = 0; i < num_vertices; i++)
-    {
-    ckout << "Partition " << thisIndex << " vertex num " <<
-    local_graph[i] << " distance " << local_graph[i].distance << endl;
-    }
-    */
     traceEnd();
-#ifdef PAPI
-    long long values[1] = {(long long)0};
-    int result = PAPI_stop(eventset, values);
-    if (result != PAPI_OK) {
-      printf("Error PAPI stop %s\n", PAPI_strerror(result));
-    }
-    // ckout << "PE " << CkMyPe() << " total instructions: " << values[0] <<
-    // endl;
-    long msg_stats[7 + histo_bucket_count];
-#else
     long msg_stats[6 + histo_bucket_count];
-#endif
     msg_stats[0] = wasted_updates;
     msg_stats[1] = rejected_updates;
     for (int i = 0; i < histo_bucket_count + 1; i++) {
@@ -1300,20 +1008,9 @@ public:
     msg_stats[3 + histo_bucket_count] = updates_noted;
     msg_stats[4 + histo_bucket_count] = actual_edges;
     msg_stats[5 + histo_bucket_count] = distance_changes;
-#ifdef PAPI
-    msg_stats[6 + histo_bucket_count] = values[0];
-#endif
-
     CkCallback cb(CkReductionTarget(Main, done), mainProxy);
-
-#ifdef PAPI
-    contribute((7 + histo_bucket_count) * sizeof(long), msg_stats,
-               CkReduction::sum_long, cb);
-#else
     contribute((6 + histo_bucket_count) * sizeof(long), msg_stats,
                CkReduction::sum_long, cb);
-#endif
-    // mainProxy.done();
   }
 
   void get_max_cost() {
