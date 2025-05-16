@@ -215,12 +215,12 @@ public:
       num_global_edges =
           4 * side_length * (side_length - 1); // will ignore command line input
       ckout << "2-D Graph will be automatically generated with " << V
-            << " vertices and " << num_global_edges << " edges" << endl;
+            << " vertices and " << num_global_edges << " edges" <<" and Tile size: "<<tile_size<<endl;
       int assigned_pe = 0;
       for (int i = 0; i < side_length; i += tile_size) {
         for (int j = 0; j < side_length; j += tile_size) {
-          for (int ii = 0; ii < tile_size; ii++) {
-            for (int jj = 0; jj < tile_size; jj++) {
+          for (int ii = 0; ii < tile_size && i + ii < side_length; ii++) {
+            for (int jj = 0; jj < tile_size && j + jj < side_length; jj++) {
               long vertex = (i + ii) * side_length + (j + jj);
               vertex_to_pe[vertex] = assigned_pe;
               pe_to_vertices[assigned_pe].push_back(vertex);
@@ -296,18 +296,18 @@ public:
         first_nonzero = i + last_first_nonzero;
       }
     }
-    ckout << "Updates: created: " << updates_created
-          << ", noted: " << updates_noted
-          << ", processed: " << updates_processed
-          << ", distance changes: " << distance_changes
-          << ", Done vertices: " << done_vertex_count
-          << ", BFS noted: " << bfs_noted;
+    // ckout << "Updates: created: " << updates_created
+    //       << ", noted: " << updates_noted
+    //       << ", processed: " << updates_processed
+    //       << ", distance changes: " << distance_changes
+    //       << ", Done vertices: " << done_vertex_count
+    //       << ", BFS noted: " << bfs_noted;
     if ((updates_processed - updates_created == 1) &&
         (updates_created > 1000) &&
         (updates_created == previous_updates_created) &&
         (updates_processed == previous_updates_processed)) {
-      ckout << endl << "updates_processed and updates_created match" << endl;
-      ckout << "Threshold: " << previous_threshold << endl;
+      // ckout << endl << "updates_processed and updates_created match" << endl;
+      // ckout << "Threshold: " << previous_threshold << endl;
       compute_time = CkWallTimer() - compute_begin;
       arr.print_distances();
       return;
@@ -357,11 +357,11 @@ public:
       previous_threshold = heap_threshold;
       threshold_change_counter++;
     }
-    ckout << ", Heap threshold: " << heap_threshold
-          << ", Tram: " << tram_threshold
-          << ", BFS threshold: " << bfs_threshold
-          << ", first nonzero: " << first_nonzero << ", t= " << CkWallTimer()
-          << endl;
+    // ckout << ", Heap threshold: " << heap_threshold
+    //       << ", Tram: " << tram_threshold
+    //       << ", BFS threshold: " << bfs_threshold
+    //       << ", first nonzero: " << first_nonzero << ", t= " << CkWallTimer()
+    //       << endl;
     // arr.contribute_histogram(first_nonzero-1);
     last_first_nonzero = first_nonzero;
     arr.current_thresholds(heap_threshold, tram_threshold, bfs_threshold,
@@ -524,6 +524,7 @@ public:
   void initialize_data(std::map<long, std::vector<long>> pe_to_vertices,
                        std::map<long, long> vertex_to_pe) {
     this->vertices = pe_to_vertices[thisIndex];
+    std::sort(this->vertices.begin(), this->vertices.end());
     this->vertex_to_pe = vertex_to_pe;
     histogram = new long[histo_bucket_count];
     vcount = new long[histo_bucket_count + 1]; // histo buckets plus infty
@@ -604,18 +605,18 @@ public:
           (x_index == side_length - 1 && y_index == 0) ||
           (x_index == 0 && y_index == side_length - 1) ||
           (x_index == side_length - 1 && y_index == side_length - 1)) {
-        if (new_node.adjacent.size() != 2)
-          ckout << "Edge count wrong for vertex " << this_vertex
-                << " should be 2 not " << new_node.adjacent.size() << endl;
+        // if (new_node.adjacent.size() != 2)
+          // ckout << "Edge count wrong for vertex " << this_vertex
+          //       << " should be 2 not " << new_node.adjacent.size() << endl;
       } else if (x_index == 0 || y_index == 0 || x_index == side_length - 1 ||
                  y_index == side_length - 1) {
-        if (new_node.adjacent.size() != 3)
-          ckout << "Edge count wrong for vertex " << this_vertex
-                << " should be 3 not " << new_node.adjacent.size() << endl;
+        // if (new_node.adjacent.size() != 3)
+          // ckout << "Edge count wrong for vertex " << this_vertex
+          //       << " should be 3 not " << new_node.adjacent.size() << endl;
       } else {
-        if (new_node.adjacent.size() != 4)
-          ckout << "Edge count wrong for vertex " << this_vertex
-                << " should be 4 not " << new_node.adjacent.size() << endl;
+        // if (new_node.adjacent.size() != 4)
+          // ckout << "Edge count wrong for vertex " << this_vertex
+          //       << " should be 4 not " << new_node.adjacent.size() << endl;
       }
       std::sort(new_node.adjacent.begin(), new_node.adjacent.end(),
                 [](Edge a, Edge b) { return a.distance < b.distance; });
@@ -734,11 +735,15 @@ public:
       cost new_distance = new_vertex_and_distance.distance;
       int this_histo_bucket = get_histo_bucket(new_distance);
       long local_index{};
-      for (int i = 0; i < vertices.size(); i++) {
-        if (dest_vertex == vertices[i])
-          break;
-        local_index++;
+      // Binary search since vertices is sorted
+      auto it = std::lower_bound(vertices.begin(), vertices.end(), dest_vertex);
+      if (it != vertices.end() && *it == dest_vertex) {
+        local_index = std::distance(vertices.begin(), it);
       }
+      else {
+        local_index = -1;
+      }
+
       if (new_distance == local_graph_other[local_index].distance) {
         // for all neighbors
         generateUpdatesOtherPe(local_index, local_graph_other);
@@ -761,11 +766,13 @@ public:
   inline void process_update(Update new_vertex_and_distance) {
     long dest_vertex = new_vertex_and_distance.dest_vertex;
     long local_index{};
-    for (int i = 0; i < vertices.size(); i++) {
-      if (dest_vertex == vertices[i])
-        break;
-      local_index++;
-    }
+    auto it = std::lower_bound(vertices.begin(), vertices.end(), dest_vertex);
+      if (it != vertices.end() && *it == dest_vertex) {
+        local_index = std::distance(vertices.begin(), it);
+      }
+      else {
+        local_index = -1;
+      }
     cost this_cost = new_vertex_and_distance.distance;
     int this_bucket = get_histo_bucket(this_cost);
     if (this_cost < local_graph[local_index].distance) {
@@ -814,10 +821,12 @@ public:
       pq.pop();
       if (vertex_to_pe[dest_vertex] == thisIndex) {
         long local_index{};
-        for (int i = 0; i < vertices.size(); i++) {
-          if (dest_vertex == vertices[i])
-            break;
-          local_index++;
+        auto it = std::lower_bound(vertices.begin(), vertices.end(), dest_vertex);
+        if (it != vertices.end() && *it == dest_vertex) {
+          local_index = std::distance(vertices.begin(), it);
+        }
+        else {
+          local_index = -1;
         }
         // if the incoming distance is actually smaller
         if (new_distance == local_graph[local_index].distance) {
